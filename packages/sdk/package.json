@@ -1,0 +1,50 @@
+{
+  "name": "@immersivecommons/sdk",
+  "version": "0.1.0",
+  "description": "Thin, spec-derived TypeScript client for the Immersive Commons Agent REST API.",
+  "keywords": [
+    "immersive-commons",
+    "ai-agents",
+    "mcp",
+    "openapi",
+    "rest-client"
+  ],
+  "license": "MIT",
+  "author": "Immersive Commons <admin@immersivecommons.com>",
+  "homepage": "https://www.immersivecommons.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RayyanZahid/ic-skills.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://www.immersivecommons.com/developers"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "openapi.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run generate && npm run build",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  },
+  "sideEffects": false
+}

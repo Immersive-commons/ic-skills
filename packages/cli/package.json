@@ -1,0 +1,40 @@
+{
+  "name": "@immersivecommons/cli",
+  "version": "0.1.0",
+  "description": "Command-line agent for Immersive Commons — auth, events, RSVP, THE SIGNAL, and the donor wall.",
+  "keywords": [
+    "immersive-commons",
+    "cli",
+    "ai-agents",
+    "mcp"
+  ],
+  "license": "MIT",
+  "author": "Immersive Commons <admin@immersivecommons.com>",
+  "homepage": "https://www.immersivecommons.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RayyanZahid/ic-skills.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://www.immersivecommons.com/developers"
+  },
+  "type": "module",
+  "bin": {
+    "ic": "bin/ic.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@immersivecommons/sdk": "^0.1.0"
+  }
+}
