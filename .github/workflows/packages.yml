@@ -1,0 +1,28 @@
+name: packages
+on:
+  push:
+    branches: [main]
+    paths: ["packages/**", ".github/workflows/packages.yml"]
+  pull_request:
+    paths: ["packages/**", ".github/workflows/packages.yml"]
+jobs:
+  ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - run: ruby -Ilib test/test_client.rb
+        working-directory: packages/ruby
+      - run: gem build immersivecommons.gemspec
+        working-directory: packages/ruby
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go vet ./... && go test ./...
+        working-directory: packages/go

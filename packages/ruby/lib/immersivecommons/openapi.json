@@ -1,0 +1,2951 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Immersive Commons — Agent REST API",
+    "version": "2026-07-16",
+    "summary": "The REST surface an AI agent uses to act at Immersive Commons.",
+    "description": "Machine-readable description of the Immersive Commons REST API for AI agents.\n\n**Authentication.** Most operations take a Bearer agent token (`Authorization: Bearer agt_...`). Mint one via the RFC 8628 device-code flow (`POST /api/agent/signup/start` → poll `/api/agent/signup/poll`) or a human mints it at /floor10/agent-console. Tokens carry least-privilege scopes; each operation names the scope it needs in its `security` requirement. Public reads allow anonymous access (empty security requirement). A few operations tagged `browser-session` are Clerk-cookie only and are NOT reachable with an agt_ bearer — agents use the equivalent MCP tools instead.\n\n**Error model.** Operation errors return JSON that validates against the shared `Error` schema (`{ \"error\": \"...\" }`, optionally `ok:false`/`error_kind`/`rate`/`retry_after_seconds`). Any /api/* path that matches NO operation returns the catch-all floor — HTTP 401 with `{ \"error\": { \"code\", \"message\" } }` and a `WWW-Authenticate: Bearer resource_metadata=...` header pointing at /.well-known/oauth-protected-resource.\n\n**Idempotency.** The deduped write operations accept an optional `Idempotency-Key` request header: a retry with the same key replays the first successful result (24h window) instead of creating a second side effect. This layers on top of each endpoint's own semantic dedupe (e.g. RSVP's 7-day window).\n\n**Versioning & deprecation policy.** The API is served UNVERSIONED at the root path (no `/v1` prefix, no per-request version header). The dated `info.version` (CalVer) is the change marker to pin against. No operation is deprecated today; when one is scheduled for removal it will be marked `deprecated: true` here and carry RFC 8594 `Deprecation` + `Sunset` response headers, announced at least 90 days ahead via /developers and llms.txt. Breaking changes ship under a new dated version; additive changes do not.\n\n**Rate limits.** Agent tokens are limited per-token per endpoint family (e.g. 3 highlight submissions/day, 60 research queries/hour). 429 responses carry a `Retry-After` header.",
+    "contact": {
+      "name": "Immersive Commons",
+      "email": "admin@immersivecommons.com",
+      "url": "https://www.immersivecommons.com/developers"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://www.immersivecommons.com/privacy"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://www.immersivecommons.com",
+      "description": "Production"
+    },
+    {
+      "url": "https://www.immersivecommons.com",
+      "description": "Sandbox (test mode) — same base URL; mint a sandbox token via `sandbox:true` on /api/agent/signup/start. Writes return simulated receipts, reads serve real data.",
+      "x-sandbox": "token-flag"
+    }
+  ],
+  "x-payment-info": {
+    "protocol": "x402",
+    "discovery": "https://www.immersivecommons.com/discovery/resources",
+    "donor_wall": "https://www.immersivecommons.com/api/floor10/donations",
+    "note": "Payable resources are advertised at /discovery/resources; a bare request to a payable resource returns HTTP 402 with the PAYMENT-REQUIRED challenge."
+  },
+  "x-api-lifecycle": {
+    "versioning": "unversioned-root (info.version is a dated CalVer change marker)",
+    "deprecation": "deprecated operations are flagged here + carry RFC 8594 Deprecation/Sunset headers, >=90 days notice"
+  },
+  "x-sandbox": {
+    "summary": "A sandbox token (mint by adding \"sandbox\": true to POST /api/agent/signup/start) is a real token with real scopes whose WRITE operations return a simulated receipt instead of mutating; reads serve real data. Same base URL + bearer auth. Immutable after mint.",
+    "obtain": {
+      "endpoint": "POST /api/agent/signup/start",
+      "body": {
+        "sandbox": true
+      }
+    },
+    "write_response_shape": {
+      "ok": true,
+      "sandbox": true,
+      "simulated": true,
+      "would_have": {
+        "action": "string",
+        "scope": "string",
+        "args": "object"
+      },
+      "note": "string — scope was checked; deeper business rules (tier/role/ownership/signature) are NOT evaluated in sandbox, and no production state changed. A green receipt means well-formed + scoped, NOT guaranteed to pass in production."
+    },
+    "real_exceptions": [
+      "POST /api/agent/feedback (bug-report channel must be heard)",
+      "POST /api/agent/token/revoke (token lifecycle; genuinely revokes)"
+    ],
+    "not_sandbox_eligible": [
+      "ic_donate (x402 payment rail — never faked; not a REST operation in this spec)",
+      "floor-admin toggles + tools with no concrete scope to check — denied fail-closed, never silently simulated"
+    ]
+  },
+  "tags": [
+    {
+      "name": "events",
+      "description": "Discover and RSVP to events; propose member events."
+    },
+    {
+      "name": "batch",
+      "description": "Fan out several public GET reads in one request."
+    },
+    {
+      "name": "directory",
+      "description": "Search the member directory."
+    },
+    {
+      "name": "resources",
+      "description": "List and book rooms / printers."
+    },
+    {
+      "name": "account",
+      "description": "The caller's own activity log."
+    },
+    {
+      "name": "leaderboard",
+      "description": "The public commit leaderboard."
+    },
+    {
+      "name": "research",
+      "description": "Query the research RAG corpus."
+    },
+    {
+      "name": "highlights",
+      "description": "Submit event highlights for moderation."
+    },
+    {
+      "name": "feedback",
+      "description": "File feedback / breakage reports."
+    },
+    {
+      "name": "auth",
+      "description": "Token mint (device code), self-revoke, setup checks."
+    },
+    {
+      "name": "payments",
+      "description": "x402 machine payments (donor wall)."
+    },
+    {
+      "name": "membership",
+      "description": "Membership tier (browser-session)."
+    },
+    {
+      "name": "browser-session",
+      "description": "Clerk-cookie only — NOT reachable with an agt_ bearer."
+    }
+  ],
+  "security": [
+    {}
+  ],
+  "paths": {
+    "/api/events/upcoming": {
+      "get": {
+        "operationId": "listUpcomingEvents",
+        "tags": [
+          "events"
+        ],
+        "summary": "List upcoming Immersive Commons events",
+        "description": "Public read of the upcoming-events KV cache. Anonymous, or authenticated with a Clerk session or an agt_ token carrying `events:read_upcoming`. Returns the events plus an `age_min` staleness gauge. Use `limit` to cap the page size (there is no cursor — the full upcoming window is small).",
+        "security": [
+          {},
+          {
+            "agentBearer": [
+              "events:read_upcoming"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Max events to return."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upcoming events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingEventsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Cache read failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/events/upcoming/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/events/get": {
+      "get": {
+        "operationId": "getEventByLumaUrl",
+        "tags": [
+          "events"
+        ],
+        "summary": "Look up a single event by its Luma URL",
+        "description": "Public. Resolves one event from the upcoming cache by its canonical Luma URL.",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "luma",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Canonical Luma event URL (https://luma.com/<slug> or https://lu.ma/<slug>)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matching event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventGetResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or non-canonical `luma` URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No matching event in the upcoming cache.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/events/get/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/batch": {
+      "post": {
+        "operationId": "batchPublicReads",
+        "x-sandbox": "real",
+        "tags": [
+          "batch"
+        ],
+        "summary": "Run up to 20 public GET reads in one request",
+        "description": "Public, no auth. Submit a bounded list (1..20) of GET sub-requests to the allowlisted PUBLIC read endpoints (`/api/events/upcoming`, `/api/events/get`, `/api/floor10/donations`) and get their results back in order. Each sub-request is dispatched to the SAME handler that serves it directly, so a batched result is identical to calling that endpoint alone. Writes and auth-gated reads are deliberately NOT batchable (they keep their own idempotency + per-token rate accounting). Partial-failure semantics: a rejected sub-request (non-GET, non-allowlisted path, handler error) carries a 4xx/5xx status inside its own result while the batch envelope stays 200; only a malformed batch envelope is a 400 on the whole call.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-sub-request results, in the same order as `requests`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed batch envelope: bad JSON, wrong shape, empty, or more than 20 sub-requests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Batch body exceeds 16KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/batch/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/events/next": {
+      "get": {
+        "operationId": "tailAgentEvents",
+        "tags": [
+          "events",
+          "browser-session"
+        ],
+        "summary": "Cursor-tail the caller's agentic event log",
+        "description": "Clerk-session only (NOT reachable with an agt_ bearer). Cursor-based tail read of the per-user agentic event log. Pass the last-seen `since` id to page forward; the response carries `cursor` + `has_more` for the next page. Headless agents use the MCP verb `ic_events_next` (bearer-auth) instead.",
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Numeric cursor = last-seen event id. Omit for the backlog head."
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated AgentEventType filter."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of agent events with a forward cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentEventsNextResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Event log read failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/events/next/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/events/rsvp": {
+      "post": {
+        "operationId": "rsvpToEvent",
+        "x-sandbox": "simulated",
+        "tags": [
+          "events"
+        ],
+        "summary": "Queue an RSVP to a Luma event",
+        "description": "Clerk session or agt_ token with `events:rsvp`. Queues an RSVP envelope for life-side processing (returns `queued`, not a confirmed Luma seat). IDEMPOTENT: a repeat within 7 days is recognized (`was_dup: true`) and no second envelope is written; an `Idempotency-Key` additionally replays the first result. Agent callers MUST supply `email` (no session fallback).",
+        "security": [
+          {
+            "agentBearer": [
+              "events:rsvp"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Optional. A retry carrying the same key replays the first successful result verbatim instead of creating a second side effect (honored by lib/idempotency.ts, 24h window). Complementary to each endpoint's own semantic dedupe. Absent = no replay."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RsvpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RSVP queued (or recognized as a duplicate).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad event_url, missing email on the agent path, or validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid token or session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token scope or live tier does not authorize events:rsvp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 8KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "KV write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/events/rsvp/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/events/request": {
+      "post": {
+        "operationId": "requestEvent",
+        "x-sandbox": "simulated",
+        "tags": [
+          "events"
+        ],
+        "summary": "Propose a member event (operator-approved)",
+        "description": "Clerk session or agt_ token with `events:request` (ic-member+). Enqueues a Luma-shaped 'save the date' into the pending queue for operator approval — it NEVER auto-creates a public event. Supports an `Idempotency-Key`.",
+        "security": [
+          {
+            "agentBearer": [
+              "events:request"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Optional. A retry carrying the same key replays the first successful result verbatim instead of creating a second side effect (honored by lib/idempotency.ts, 24h window). Complementary to each endpoint's own semantic dedupe. Absent = no replay."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request enqueued as pending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON or field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tier/scope does not authorize events:request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-member daily cap reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Queue write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Rate limiter unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/events/request/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/directory/search": {
+      "get": {
+        "operationId": "searchDirectory",
+        "tags": [
+          "directory"
+        ],
+        "summary": "Search the member directory",
+        "description": "Clerk session or agt_ token with `directory:search`. Privacy-graded search over the member roster; the fields returned depend on the caller's tier.",
+        "security": [
+          {
+            "agentBearer": [
+              "directory:search"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Query over name / display_name / github / telegram / member_id."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Privacy-graded search results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Search failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/directory/search/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/resources/list": {
+      "get": {
+        "operationId": "listResources",
+        "tags": [
+          "resources"
+        ],
+        "summary": "List bookable resources",
+        "description": "Clerk session or agt_ token with `resources:read`. Returns the resource catalog plus a staleness gauge.",
+        "security": [
+          {
+            "agentBearer": [
+              "resources:read"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookable resources.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcesListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Read failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/resources/list/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/resources/book": {
+      "post": {
+        "operationId": "bookResource",
+        "x-sandbox": "simulated",
+        "tags": [
+          "resources"
+        ],
+        "summary": "Queue a resource booking",
+        "description": "Clerk session or agt_ token with `resources:book`. Queues a booking envelope (returns `queued`, not confirmed). IDEMPOTENT: a repeat within 30 days for the exact same start time is recognized (`was_dup: true`); an `Idempotency-Key` additionally replays the first result. Agent callers MUST supply `email`.",
+        "security": [
+          {
+            "agentBearer": [
+              "resources:book"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Optional. A retry carrying the same key replays the first successful result verbatim instead of creating a second side effect (honored by lib/idempotency.ts, 24h window). Complementary to each endpoint's own semantic dedupe. Absent = no replay."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking queued (or recognized as a duplicate).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/invalid fields or missing email on the agent path.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope/tier not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "resource_id not found / not bookable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 8KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "KV write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/resources/book/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/activity/me": {
+      "get": {
+        "operationId": "getMyActivity",
+        "tags": [
+          "account"
+        ],
+        "summary": "Read the caller's own activity log",
+        "description": "Clerk session or agt_ token with `membership:read`. Returns the most recent consequential tool calls recorded for the caller.",
+        "security": [
+          {
+            "agentBearer": [
+              "membership:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Default 25, max 100."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent activity events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/activity/me/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/leaderboard/me": {
+      "get": {
+        "operationId": "getMyLeaderboardStatus",
+        "tags": [
+          "leaderboard"
+        ],
+        "summary": "Read the caller's commit-leaderboard state",
+        "description": "Clerk session or agt_ token with `leaderboard:manage`. Returns opt-in flag, linked GitHub username, and current weekly rank if rendered.",
+        "security": [
+          {
+            "agentBearer": [
+              "leaderboard:manage"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard state for the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardMeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Read failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/leaderboard/me/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/leaderboard/optin": {
+      "post": {
+        "operationId": "setLeaderboardOptIn",
+        "x-sandbox": "simulated",
+        "tags": [
+          "leaderboard"
+        ],
+        "summary": "Toggle commit-leaderboard opt-in",
+        "description": "Clerk session or agt_ token with `leaderboard:manage`. Opting IN requires a linked GitHub identity (409 otherwise). Opting OUT is unconditional.",
+        "security": [
+          {
+            "agentBearer": [
+              "leaderboard:manage"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaderboardOptInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New opt-in state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardOptInResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope/tier not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Opt-in requested but no GitHub link.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Clerk update failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/leaderboard/optin/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/research/ask": {
+      "post": {
+        "operationId": "askResearch",
+        "x-sandbox": "real",
+        "tags": [
+          "research"
+        ],
+        "summary": "Query the research RAG corpus",
+        "description": "Clerk session or agt_ token with `research:query`. Forwards a top-k retrieval (optionally LLM-synthesized) query to the supercommons2 RAG funnel and returns the results. The query text is never logged. 60 requests/hour/member.",
+        "security": [
+          {
+            "agentBearer": [
+              "research:query"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchAskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieval results (or a synthesized answer).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchAskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad JSON / missing or oversized q / invalid k / invalid sources / invalid model.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope/tier not authorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-member hourly rate budget exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream RAG funnel error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "RAG funnel not configured / rate limiter unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Upstream RAG funnel timeout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/research/ask/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/ingest/highlights/pending": {
+      "post": {
+        "operationId": "submitHighlightPending",
+        "x-sandbox": "simulated",
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Submit a highlight to the moderation queue",
+        "description": "agt_ token required (scope `events:submit_recap`). Adds a HighlightStory to the pending moderation queue; an operator approves it. ASYNC-JOB: returns 202 Accepted with `status: pending`, a `job_id` (= the story `id`), a `poll_url`, and a `Location` response header — all pointing at `GET /api/ingest/highlights/pending?id=<job_id>`, which returns `status: pending` while queued or `status: gone` once it leaves the queue (approved → active, rejected, or expired). IDEMPOTENT: re-submitting the same story `id` refreshes the pending record without bumping the rate counter; an `Idempotency-Key` additionally replays the 202 (with the same `Location`). Rate: 3/token/UTC day.",
+        "security": [
+          {
+            "agentBearer": [
+              "events:submit_recap"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Optional. A retry carrying the same key replays the first successful result verbatim instead of creating a second side effect (honored by lib/idempotency.ts, 24h window). Complementary to each endpoint's own semantic dedupe. Absent = no replay."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HighlightPendingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted into the pending queue. Poll the `Location` header (or `poll_url`) for the job's status.",
+            "headers": {
+              "Location": {
+                "description": "Status-poll URL for this submission: GET /api/ingest/highlights/pending?id=<job_id> → { status: pending | gone }.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighlightPendingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON or story validation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token daily rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Enqueue failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/ingest/highlights/pending/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/agent/feedback": {
+      "post": {
+        "operationId": "submitFeedback",
+        "x-sandbox": "real",
+        "tags": [
+          "feedback"
+        ],
+        "summary": "File feedback, a feature request, or a breakage report",
+        "description": "Anonymous-OK (per-IP rate limited, 10/hr). An optional agt_ Bearer (`feedback:submit`) attributes the ticket to your account; a bad token is treated as anonymous rather than refused (low-friction channel).",
+        "security": [
+          {},
+          {
+            "agentBearer": [
+              "feedback:submit"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSubmitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty body, invalid JSON, invalid kind, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-IP hourly rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "KV write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/agent/feedback/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/agent/token/revoke": {
+      "post": {
+        "operationId": "revokeOwnToken",
+        "x-sandbox": "real",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Self-revoke the presenting token",
+        "description": "agt_ token required. The presented token revokes ITSELF (self-destruction, not privilege escalation) — it cannot revoke other tokens. Idempotent: re-revoking an already-revoked token returns `already_revoked: true`.",
+        "security": [
+          {
+            "agentBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenRevokeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/malformed/unknown/already-revoked token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "KV write failed (safe to retry).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/agent/token/revoke/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/agent/setup-check": {
+      "get": {
+        "operationId": "setupCheck",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Deterministic 'am I set up?' probe",
+        "description": "Optional Bearer. Always 200. With a valid token, returns `ready: true` plus scopes + the MCP install recipe; without (or with a bad token), returns `ready: false` + `missing` + `next_actions`. The verdict is the body, not the HTTP status.",
+        "security": [
+          {},
+          {
+            "agentBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A setup checklist (ready true/false).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupCheckResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/agent/setup-check/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/agent/signup/start": {
+      "post": {
+        "operationId": "startSignup",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Begin the RFC 8628 device-code token mint",
+        "description": "Anonymous (per-IP rate limited, 30/hr). Returns a device_code (kept by the agent) + a user_code the human enters at verify_url. Then poll /api/agent/signup/poll until the human approves.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device-code grant started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/invalid scopes or malformed body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-IP rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "KV write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/agent/signup/start/route.ts",
+          "method": "POST"
+        }
+      }
+    },
+    "/api/agent/signup/poll": {
+      "get": {
+        "operationId": "pollSignup",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Poll a device-code grant for completion",
+        "description": "Anonymous (the device_code is the credential). Returns `pending`, `completed` (with the minted agent_token — surfaced ONCE), or `cancelled`. After completion the record is consumed and further polls 410.",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "device_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64
+            },
+            "description": "The device_code from /start. Omit for the self-describe contract."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grant status (pending/completed/cancelled) or the self-describe contract.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupPollResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "device_code expired, unknown, consumed, or cancelled-and-already-surfaced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Completed record missing token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/agent/signup/poll/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/floor10/donations": {
+      "get": {
+        "operationId": "getDonorWall",
+        "tags": [
+          "payments"
+        ],
+        "summary": "Read the public donor wall",
+        "description": "Public, no auth. Running total raised (USDC), donor count, and recent settled gifts. Donations are made via the x402 pay-per-use surface (see the x-payment-info discovery pointer at the top of this document).",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "description": "Recent-donor cap; default 10, max 50."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The donor wall.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DonationsResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/floor10/donations/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/tier/me": {
+      "get": {
+        "operationId": "getMyTier",
+        "tags": [
+          "membership",
+          "browser-session"
+        ],
+        "summary": "Read the caller's membership tier",
+        "description": "Clerk-session only (NOT reachable with an agt_ bearer). Returns the caller's current tier, any pending request, and history. Agents read their tier via the MCP tool `ic_get_my_membership`.",
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tier + pending request + history.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TierMeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Clerk lookup failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/tier/me/route.ts",
+          "method": "GET"
+        }
+      }
+    },
+    "/api/tier/request": {
+      "post": {
+        "operationId": "requestTier",
+        "tags": [
+          "membership",
+          "browser-session"
+        ],
+        "summary": "Request a higher membership tier",
+        "description": "Clerk-session only (NOT reachable with an agt_ bearer). Records a pending request for a higher, self-requestable ring; an operator approves it. Idempotent: re-posting overwrites the prior pending request. Agents use the MCP tool `ic_request_tier`.",
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TierRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TierRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tier (not self-requestable / not higher than current).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Clerk update failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/tier/request/route.ts",
+          "method": "POST"
+        }
+      },
+      "delete": {
+        "operationId": "cancelTierRequest",
+        "tags": [
+          "membership",
+          "browser-session"
+        ],
+        "summary": "Cancel the pending tier request",
+        "description": "Clerk-session only. Clears the caller's pending tier request. No-op if none is pending.",
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled (or nothing was pending).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TierRequestCancelResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Clerk update failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-ic-route": {
+          "file": "app/api/tier/request/route.ts",
+          "method": "DELETE"
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "agentBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "agt_<base64url>",
+        "description": "Per-member, individually-revocable agent token minted via the device-code flow. Send as `Authorization: Bearer agt_...`. The scope array in each operation's security requirement names the IC scope the handler enforces."
+      },
+      "clerkSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__session",
+        "description": "Browser Clerk session cookie. Operations under this scheme are reachable ONLY from a signed-in browser session, NOT with an agt_ bearer token. Agents use the equivalent MCP tools (e.g. ic_get_my_membership, ic_request_tier)."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "additionalProperties": true,
+        "description": "Structured JSON error. `error` (string) is always present — an error code or a human-readable message. `ok:false` is present on bearer auth-gate rejections. Endpoints may attach additional context keys to aid recovery (tier, current_tier, limit, window_seconds, valid_kinds, recovery_hint, detail, example, ...); the reusable ones are named below.",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error code or human-readable message (always present)."
+          },
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              false
+            ],
+            "description": "Present (false) on auth-gate rejections."
+          },
+          "error_kind": {
+            "type": "string",
+            "description": "Machine-readable failure class (rate_limit, validation, not_found, ...)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Longer human-readable detail (feedback + some rate-limit errors)."
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateInfo"
+          },
+          "retry_after_seconds": {
+            "type": "integer",
+            "description": "Seconds to wait before retrying (on 429)."
+          },
+          "tier": {
+            "type": "string",
+            "description": "The caller's current tier — present on a tier/scope authorization (403) rejection."
+          },
+          "current_tier": {
+            "type": "string",
+            "description": "The caller's current tier — present on a tier/request validation (400) rejection."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Extra failure detail — present on some 500 responses (e.g. the agent event-log read)."
+          }
+        }
+      },
+      "RateInfo": {
+        "type": "object",
+        "description": "Per-token rate-limit snapshot returned by write endpoints.",
+        "properties": {
+          "current": {
+            "type": "integer"
+          },
+          "remaining": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventSummary": {
+        "type": "object",
+        "description": "One cached upcoming event. Passthrough of lib/events-ops shape; extra fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "luma_url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": "string"
+          },
+          "cover_url": {
+            "type": "string"
+          }
+        }
+      },
+      "UpcomingEventsResponse": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventSummary"
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "age_min": {
+            "type": "number",
+            "description": "Minutes since the cache was last refreshed."
+          }
+        },
+        "additionalProperties": true
+      },
+      "EventGetResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "event"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventSummary"
+          }
+        }
+      },
+      "AgentEventsNextResponse": {
+        "type": "object",
+        "description": "Cursor-paginated page of agentic events.",
+        "required": [
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "cursor": {
+            "type": "integer",
+            "description": "Pass as `since` to fetch the next page."
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "True when more events remain past this page."
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      },
+      "RsvpRequest": {
+        "type": "object",
+        "required": [
+          "event_url"
+        ],
+        "properties": {
+          "event_url": {
+            "type": "string",
+            "description": "https://luma.com/<slug>"
+          },
+          "email": {
+            "type": "string",
+            "description": "Required for agent callers (no session fallback); optional on the Clerk path."
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "EventRequestRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "start"
+        ],
+        "description": "Luma-shaped event proposal (EventRequestDetails).",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Future ISO-8601 start."
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "cover_url": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          },
+          "slideshow_url": {
+            "type": "string"
+          }
+        }
+      },
+      "EventRequestResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "id",
+          "status"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "clerk",
+              "agent"
+            ]
+          }
+        }
+      },
+      "QueueResponse": {
+        "type": "object",
+        "description": "Shared shape for the queue-and-forget writes (rsvp, book).",
+        "required": [
+          "ok",
+          "queued"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "queued": {
+            "type": "boolean"
+          },
+          "was_dup": {
+            "type": "boolean",
+            "description": "True when semantic dedupe recognized this as a repeat within the window."
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateInfo"
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "clerk",
+              "agent"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "BatchSubRequest": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "description": "One GET sub-request in a batch.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional caller correlation id; echoed back verbatim on the matching result."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET"
+            ],
+            "default": "GET",
+            "description": "Only GET sub-requests are batchable."
+          },
+          "path": {
+            "type": "string",
+            "description": "An allowlisted public /api path, optionally with a query string (e.g. /api/events/upcoming?limit=3). Allowed: /api/events/upcoming, /api/events/get, /api/floor10/donations."
+          }
+        }
+      },
+      "BatchRequest": {
+        "type": "object",
+        "required": [
+          "requests"
+        ],
+        "description": "A bounded list (1..20) of public GET sub-requests to run in one round-trip.",
+        "properties": {
+          "requests": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/BatchSubRequest"
+            }
+          }
+        }
+      },
+      "BatchResultItem": {
+        "type": "object",
+        "required": [
+          "path",
+          "status",
+          "ok",
+          "body"
+        ],
+        "description": "One sub-request's outcome. `status`/`ok`/`body` are exactly what the target endpoint would have returned; a rejected sub-request (non-allowlisted path, non-GET, or handler error) carries a 4xx/5xx status + an { error } body while the batch envelope stays 200.",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Echoed from the sub-request if one was supplied."
+          },
+          "path": {
+            "type": "string",
+            "description": "The sub-request path as sent."
+          },
+          "status": {
+            "type": "integer",
+            "description": "HTTP status the target handler returned (or a 4xx/5xx synthesized for a rejected sub-request)."
+          },
+          "ok": {
+            "type": "boolean",
+            "description": "True iff status is 2xx."
+          },
+          "body": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The target endpoint's JSON body (or an { error } object on a rejected sub-request)."
+          }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "count",
+          "results"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of results (equals requests.length)."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchResultItem"
+            }
+          }
+        }
+      },
+      "DirectorySearchResponse": {
+        "type": "object",
+        "description": "Privacy-graded results; the fields per member depend on the caller's tier.",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ResourcesListResponse": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "clerk",
+              "agent"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "BookRequest": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "start_iso",
+          "end_iso"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "description": "e.g. \"ft-9\" or \"printer-prusa-1\"."
+          },
+          "start_iso": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_iso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "After start."
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Free text, trimmed + clipped to 600 chars server-side."
+          },
+          "email": {
+            "type": "string",
+            "description": "Required for agent callers; optional on the Clerk path."
+          }
+        }
+      },
+      "ActivityResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "events"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "clerk",
+              "agent"
+            ]
+          }
+        }
+      },
+      "LeaderboardMeResponse": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "optIn": {
+            "type": "boolean"
+          },
+          "github_username": {
+            "type": "string"
+          },
+          "github_link_source": {
+            "type": "string",
+            "enum": [
+              "oauth",
+              "agent_pat"
+            ]
+          },
+          "github_verified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "this_week": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "rank": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "LeaderboardOptInRequest": {
+        "type": "object",
+        "required": [
+          "optIn"
+        ],
+        "properties": {
+          "optIn": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LeaderboardOptInResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "optIn"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "optIn": {
+            "type": "boolean"
+          },
+          "github_username": {
+            "type": "string"
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "clerk",
+              "agent"
+            ]
+          }
+        }
+      },
+      "ResearchAskRequest": {
+        "type": "object",
+        "required": [
+          "q"
+        ],
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "The query."
+          },
+          "k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "paper",
+                "book"
+              ]
+            },
+            "default": [
+              "paper"
+            ]
+          },
+          "synthesize": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true, returns an LLM-synthesized grounded answer."
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-haiku-4-5",
+              "claude-sonnet-4-6",
+              "claude-opus-4-7"
+            ],
+            "description": "Only valid when synthesize=true."
+          }
+        }
+      },
+      "ResearchAskResponse": {
+        "type": "object",
+        "description": "Passthrough from the RAG funnel. `/search` returns { results, via }; `/synthesize` returns { q, k, model, answer, citations, retrieval_results, usage, via }.",
+        "additionalProperties": true,
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "answer": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "via": {
+            "type": "string"
+          }
+        }
+      },
+      "HighlightPendingRequest": {
+        "type": "object",
+        "description": "A HighlightStory, or an object wrapping one under `story`. Validated by lib/highlights-pending.ts.",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable id — re-submitting the same id refreshes the pending record (dedupe)."
+          },
+          "story": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Optional wrapper; the story fields may also be sent at the top level."
+          }
+        }
+      },
+      "HighlightPendingResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "id",
+          "status"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string",
+            "description": "Async-job handle (= `id`) to poll this submission with. Mirrors the `Location` header + `poll_url`."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "poll_url": {
+            "type": "string",
+            "description": "Status-poll URL: GET /api/ingest/highlights/pending?id=<job_id> → { status: pending | gone }. Same URL as the `Location` response header."
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateInfo"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FeedbackSubmitRequest": {
+        "type": "object",
+        "required": [
+          "kind",
+          "message"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "broken_url",
+              "schema_mismatch",
+              "stale_doc",
+              "endpoint_404",
+              "bug_report",
+              "other",
+              "feature_request",
+              "praise",
+              "complaint",
+              "question",
+              "suggestion"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "expected": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "got": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "agent_id": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "FeedbackSubmitResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "ticket_id"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Quote this when following up."
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authenticated": {
+            "type": "boolean",
+            "description": "True iff a valid Bearer attributed the submission."
+          },
+          "message": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TokenRevokeResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "revoked"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "already_revoked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetupCheckResponse": {
+        "type": "object",
+        "required": [
+          "ready"
+        ],
+        "description": "ready:true carries checks{scopes,member_id,...}+mcp; ready:false carries missing[]+next_actions[]+mcp.",
+        "additionalProperties": true,
+        "properties": {
+          "ready": {
+            "type": "boolean"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "next_actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "mcp": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "SignupStartRequest": {
+        "type": "object",
+        "required": [
+          "scopes"
+        ],
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 64,
+            "description": "Requested capability scopes (validated against the user's tier at approval)."
+          },
+          "client_name": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Free-text agent identifier shown to the approving human."
+          },
+          "sandbox": {
+            "type": "boolean",
+            "description": "Mint a sandbox/test-mode token: WRITE verbs return a simulated receipt instead of mutating; reads serve real data. Still a real token with real scopes — this does NOT widen access. Immutable after mint. See the root x-sandbox extension."
+          }
+        }
+      },
+      "SignupStartResponse": {
+        "type": "object",
+        "required": [
+          "device_code",
+          "user_code",
+          "verify_url",
+          "expires_in",
+          "interval"
+        ],
+        "properties": {
+          "device_code": {
+            "type": "string",
+            "description": "Long secret — the agent keeps it, never displays it."
+          },
+          "user_code": {
+            "type": "string",
+            "description": "Short human-readable code."
+          },
+          "verify_url": {
+            "type": "string"
+          },
+          "verify_url_complete": {
+            "type": "string",
+            "description": "verify_url + ?code= prefilled."
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Seconds (900)."
+          },
+          "interval": {
+            "type": "integer",
+            "description": "Recommended poll interval in seconds (5)."
+          }
+        }
+      },
+      "SignupPollResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "description": "One of pending / completed / cancelled. `completed` surfaces the agent_token exactly once.",
+        "additionalProperties": true,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "agent_token": {
+            "type": "string",
+            "description": "Plaintext, surfaced ONCE — store it on the agent."
+          },
+          "tier": {
+            "type": "string"
+          },
+          "pending_tier": {
+            "type": "string"
+          },
+          "granted_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sandbox": {
+            "type": "boolean",
+            "description": "Present + true when the minted token is a sandbox/test-mode token (mirrors the `sandbox` flag sent to /start)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "On cancellation."
+          },
+          "next_steps": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DonationsResponse": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "total_usdc": {
+            "type": "number"
+          },
+          "donor_count": {
+            "type": "integer"
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "TierMeResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "tier"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "tier": {
+            "type": "string",
+            "description": "public | ft-member | ai-floor | ic-member | operator"
+          },
+          "pending": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true,
+            "description": "The pending tier request, or null."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "email": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        }
+      },
+      "TierRequestRequest": {
+        "type": "object",
+        "required": [
+          "tier"
+        ],
+        "properties": {
+          "tier": {
+            "type": "string",
+            "description": "A self-requestable tier ABOVE the caller's current tier."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 600
+          }
+        }
+      },
+      "TierRequestResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "current_tier",
+          "requested_tier"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "current_tier": {
+            "type": "string"
+          },
+          "requested_tier": {
+            "type": "string"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kv_warning": {
+            "type": "string",
+            "description": "Present if the KV pending-queue write soft-failed (the request is still recorded)."
+          }
+        }
+      },
+      "TierRequestCancelResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "was_pending"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "was_pending": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
