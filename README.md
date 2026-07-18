@@ -7,7 +7,8 @@ Tower SF, a members-run space for AI builders. The API is documented by the live
 [OpenAPI 3.1 spec](https://www.immersivecommons.com/openapi.json), reachable over REST,
 the [MCP server](https://www.immersivecommons.com/api/mcp) (Streamable HTTP), and A2A; agents
 authenticate with a device-code [`agt_` token](https://www.immersivecommons.com/auth.md). Start
-at the [developer portal](https://www.immersivecommons.com/developers).
+at the [developer portal](https://www.immersivecommons.com/developers) or the
+[API documentation hub](https://www.immersivecommons.com/docs).
 
 > **Canonical source.** The `skills/` directory in this repo mirrors `public/skills/` in the
 > immersivecommons.com Next.js app 1:1. The site is the source of truth; this repo is a
