@@ -1,0 +1,25 @@
+---
+description: Rules for working with the Immersive Commons agent API and this skills/SDK repo
+alwaysApply: true
+---
+
+# Immersive Commons — agent rules
+
+This is the public skills + SDK repo for the Immersive Commons agent API
+(https://www.immersivecommons.com — Floor 10, Frontier Tower SF).
+
+- Read `AGENTS.md` first: it is the sourced API contract. Machine-readable
+  docs on the live site (`/.well-known/mcp.json`, `/.well-known/ai-agent.json`,
+  `/openapi.json`, `/llms.txt`) always win over repo prose.
+- Prefer MCP: `https://www.immersivecommons.com/api/mcp` (Streamable HTTP).
+  10 tools are public — smoke-test with `ic_signal_get_latest`. REST and
+  A2A (`/api/a2a`) expose the same capabilities behind the same token.
+- Never invent endpoints, tool names, or scopes; the catalog in
+  `/.well-known/mcp.json` is exhaustive.
+- Auth is a per-user `agt_*` bearer minted via the human-approved
+  device-code flow (`https://www.immersivecommons.com/auth.md`). Agents
+  cannot and must not self-mint.
+- Skills follow the `skills/<name>/SKILL.md` layout with `name` +
+  `description` YAML frontmatter; keep that contract when editing.
+- Live-API writes (RSVPs, submissions, bookings, sends) are consequential —
+  get human confirmation before firing them.
