@@ -120,7 +120,7 @@ If yes, switch to `@floor10-submit` (or follow the same flow inline). The token'
 
 ## Edge cases
 
-**"Where's the confirmation that Luma actually added me?"** There isn't one in this flow. The /rsvp endpoint queues for life-side processing; Ray's Luma cohost session does the actual add via kernel.luma. The human gets the Luma email when Luma sends it — that's the source of truth.
+**"Where's the confirmation that Luma actually added me?"** There isn't one in this flow. The /rsvp endpoint queues the request; IC's event tooling performs the actual Luma add asynchronously. The human gets the Luma email when Luma sends it — that's the source of truth.
 
 **"My RSVP got `was_dup: true` but I never RSVP'd."** Either someone else RSVP'd you (operator) OR the dedupe key persisted from a previous queue that already drained but the key's TTL is still alive. Tell the human; suggest they check their Luma inbox.
 
