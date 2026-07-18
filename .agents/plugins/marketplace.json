@@ -1,0 +1,17 @@
+{
+  "name": "immersive-commons",
+  "metadata": {
+    "description": "Immersive Commons plugin marketplace — install the IC plugin (MCP server + 13 agent skills) straight from this repo.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "immersive-commons",
+      "source": "./",
+      "description": "Immersive Commons: the IC MCP server plus 13 packaged skills (events, THE SIGNAL, agent onboarding, headsets, highlights, agent inbox, and more).",
+      "policy": {
+        "installation": "AVAILABLE"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ic-floor10": {
+      "type": "http",
+      "url": "https://www.immersivecommons.com/api/mcp"
+    }
+  }
+}

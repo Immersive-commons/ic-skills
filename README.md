@@ -42,6 +42,22 @@ This walks you through selecting one or more of the 13 skills below and the targ
 
 Or install a single skill directly from its raw URL / by cloning just that folder — every `SKILL.md` is self-contained (no shared includes) and works fine copied on its own.
 
+## Install as a ChatGPT / Codex plugin
+
+This repo doubles as a **plugin** (`.codex-plugin/plugin.json`): one install gives your
+agent the IC MCP server connection (`.mcp.json` → `https://www.immersivecommons.com/api/mcp`)
+plus all 13 skills below. Two ways in:
+
+- **From this repo as a marketplace source** — add the repo (it ships
+  `.agents/plugins/marketplace.json`) and install the `immersive-commons` plugin from it.
+- **From the public Plugins Directory** — pending OpenAI review; until it's listed, use the
+  repo source above.
+
+Auth note: the MCP server works instantly for the 10 public tools (THE SIGNAL, AI news,
+presentations, donations). Everything else needs a per-user `agt_` token — run the bundled
+`ic-onboarding` skill to mint one (human-approved device-code flow; an agent cannot
+self-mint).
+
 ## Skills catalog
 
 | Skill | What it does | Auth |

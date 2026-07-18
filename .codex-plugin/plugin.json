@@ -1,0 +1,30 @@
+{
+  "name": "immersive-commons",
+  "version": "1.0.0",
+  "description": "Immersive Commons (Floor 10, Frontier Tower SF) as a plugin: the IC MCP server (events, THE SIGNAL weekly AI dispatch, AI news feed, membership, headsets, 3D prints, agent inbox) plus 13 packaged skills that teach an agent one IC workflow at a time — from minting a scoped agent token to RSVPing events and submitting highlights.",
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Immersive Commons",
+    "shortDescription": "Live events, weekly AI intelligence, and the agent-native member surface of Immersive Commons — the members-run AI builder space in San Francisco.",
+    "logo": "./assets/logo.png",
+    "category": "Community",
+    "capabilities": ["Read", "Write"]
+  },
+  "author": "Immersive Commons",
+  "homepage": "https://www.immersivecommons.com",
+  "repository": "https://github.com/Immersive-commons/ic-skills",
+  "license": "MIT",
+  "keywords": [
+    "immersive-commons",
+    "san-francisco",
+    "ai-events",
+    "mcp",
+    "agent-skills",
+    "newsletter",
+    "community"
+  ],
+  "websiteURL": "https://www.immersivecommons.com",
+  "privacyPolicyURL": "https://www.immersivecommons.com/privacy",
+  "termsOfServiceURL": "https://www.immersivecommons.com/terms"
+}
