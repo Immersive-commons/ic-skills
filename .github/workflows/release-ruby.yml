@@ -1,0 +1,39 @@
+# Publishes the immersivecommons gem to RubyGems.org via OIDC Trusted
+# Publishing — no API key exists anywhere. The rubygems.org side of the
+# binding is the (pending) trusted publisher for gem "immersivecommons":
+# repo Immersive-commons/ic-skills, workflow release-ruby.yml.
+name: release-ruby
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Test (mock transport, must be green before any push)
+        working-directory: packages/ruby
+        run: ruby -Ilib test/test_client.rb
+
+      - name: Configure trusted-publishing credentials (OIDC, short-lived)
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
+      - name: Build gem
+        working-directory: packages/ruby
+        run: gem build immersivecommons.gemspec
+
+      - name: Push gem
+        working-directory: packages/ruby
+        run: gem push immersivecommons-*.gem
