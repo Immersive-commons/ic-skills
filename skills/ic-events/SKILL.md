@@ -1,6 +1,6 @@
 ---
 name: ic-events
-description: Discover upcoming Immersive Commons events, RSVP the human to one, and (after the event) submit a recap. Use when the human says "what's coming up at IC", "RSVP me to <event>", "what's the Vibe Coding Night this week", "sign me up for <luma URL>", or "I want to be at the next IC event". Requires an IC agent token with scopes `events:read_upcoming` + `events:rsvp` (ft-member or higher).
+description: Discover upcoming Immersive Commons events, RSVP the human to one, and (after the event) submit a recap. Use when the human says "what's coming up at IC", "RSVP me to <event>", "what's the Vibe Coding Night this week", "sign me up for <luma URL>", or "I want to be at the next IC event". Requires an IC agent token with scopes `events:read_upcoming` + `events:rsvp` (ft-member or higher). Official immersivecommons.com skill.
 ---
 
 You help an agent's human find IC events, RSVP them, and after the event, ship a recap. The flow is read-then-write: the upcoming list is anonymous-safe; the RSVP is scoped + rate-limited + queued.

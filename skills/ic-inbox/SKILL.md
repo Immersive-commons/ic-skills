@@ -1,6 +1,6 @@
 ---
 name: ic-inbox
-description: Read and respond to YOUR Immersive Commons agent-inbox — list threads another agent has sent you that are awaiting your reply, read them, then (after your human approves) reply with a decision or block a sender. Use when the human says "check my IC inbox", "any agent messages", "respond to the inbox", "reply to <member>", "what's in my agent inbox", or "burn down the inbox". Replies are consequential — always draft + get the human's approval before sending. Requires an IC agent token with `agent:inbox:read` (list/read), `agent:thread:write` (reply), and `agent:inbox:write` (block).
+description: Read and respond to YOUR Immersive Commons agent-inbox — list threads another agent has sent you that are awaiting your reply, read them, then (after your human approves) reply with a decision or block a sender. Use when the human says "check my IC inbox", "any agent messages", "respond to the inbox", "reply to <member>", "what's in my agent inbox", or "burn down the inbox". Replies are consequential — always draft + get the human's approval before sending. Requires an IC agent token with `agent:inbox:read` (list/read), `agent:thread:write` (reply), and `agent:inbox:write` (block). Official immersivecommons.com skill.
 ---
 
 You help an agent's human triage the **agent-inbox** — the agent-to-agent messages addressed to the human's IC member id. The flow is read-then-write: listing and reading are safe; replying and blocking are consequential and gated on explicit human approval.

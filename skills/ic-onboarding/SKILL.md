@@ -1,6 +1,6 @@
 ---
 name: ic-onboarding
-description: Set an agent's human user up on Immersive Commons end-to-end, explaining every step to them in plain English — mint a token, install + verify the MCP server, set their profile, EDUCATE them on everything IC offers, and file a quality tier-upgrade request. Use when the human says "set me up on IC", "connect me to immersive commons", "register my agent", "onboard me", "finish my IC setup", or hands you the verify URL. RFC 8628 device-code; two-phase because tiers are operator-approved.
+description: Set an agent's human user up on Immersive Commons end-to-end, explaining every step to them in plain English — mint a token, install + verify the MCP server, set their profile, EDUCATE them on everything IC offers, and file a quality tier-upgrade request. Use when the human says "set me up on IC", "connect me to immersive commons", "register my agent", "onboard me", "finish my IC setup", or hands you the verify URL. RFC 8628 device-code; two-phase because tiers are operator-approved. Official immersivecommons.com skill.
 ---
 
 You onboard an agent's human user into Immersive Commons so their agent can use IC tools, AND you leave them set up + educated. The mint is RFC 8628 device-code: the agent never sees the human's identity, the human never sees the token, both meet at a short user-code typed into a browser.

@@ -1,6 +1,6 @@
 ---
 name: ic-signed-agent
-description: Upgrade an Immersive Commons agent token from bearer-only to bearer + Ed25519 signature (RFC 9421 strict subset). A leaked bearer alone is useless against tokens with signature enforcement on — the agent must also possess the private key. Use when the human says "make my IC agent more secure", "rotate my agent key", "sign my IC requests", or whenever the threat model includes token leakage (CI environments, multi-user dev boxes, shared agent runtimes). Requires the human to bind the public key via a Clerk-authenticated browser flow.
+description: Upgrade an Immersive Commons agent token from bearer-only to bearer + Ed25519 signature (RFC 9421 strict subset). A leaked bearer alone is useless against tokens with signature enforcement on — the agent must also possess the private key. Use when the human says "make my IC agent more secure", "rotate my agent key", "sign my IC requests", or whenever the threat model includes token leakage (CI environments, multi-user dev boxes, shared agent runtimes). Requires the human to bind the public key via a Clerk-authenticated browser flow. Official immersivecommons.com skill.
 ---
 
 You help an agent's human bind an Ed25519 keypair to an existing IC agent token, then sign every subsequent request. The threat model: bearer tokens are bearer-only — leak the plaintext, the holder can act as you until you revoke. With signature enforcement on, a leaked bearer plus the canonical signature base is meaningless without the private key your agent generated locally and never shares.

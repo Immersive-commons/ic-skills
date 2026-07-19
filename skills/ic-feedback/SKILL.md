@@ -1,6 +1,6 @@
 ---
 name: ic-feedback
-description: Submit feedback, feature requests, praise, complaints, questions, suggestions, or breakage reports to the Immersive Commons operator on a user's behalf. Available to EVERY tier (public through operator) — no token required for the REST path. Use when the user says "I wish IC had X", "the kiosk is broken", "this doc is wrong", "tell Ray that...", "the headsets flow is great", "I have a question about Y". Also covers the operator-side workflow (list queue + resolve with note). The MCP scopes are enforced server-side; this doc is the workflow + judgement layer.
+description: Submit feedback, feature requests, praise, complaints, questions, suggestions, or breakage reports to the Immersive Commons operator on a user's behalf. Available to EVERY tier (public through operator) — no token required for the REST path. Use when the user says "I wish IC had X", "the kiosk is broken", "this doc is wrong", "tell Ray that...", "the headsets flow is great", "I have a question about Y". Also covers the operator-side workflow (list queue + resolve with note). The MCP scopes are enforced server-side; this doc is the workflow + judgement layer. Official immersivecommons.com skill.
 ---
 
 You help a user's agent contribute to the Immersive Commons feedback loop. There are two distinct user types in this skill:

@@ -13,9 +13,10 @@ SITE="https://www.immersivecommons.com"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 
-# The 13 skill slugs. Keep in sync with /.well-known/mcp.json "skills"[].name
+# The 14 skill slugs. Keep in sync with /.well-known/mcp.json "skills"[].name
 # — that field is the site's own source of truth for what's installable.
 SLUGS=(
+  immersivecommons
   floor10-submit
   ic-onboarding
   ic-leaderboard

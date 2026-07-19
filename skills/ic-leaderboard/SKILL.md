@@ -1,6 +1,6 @@
 ---
 name: ic-leaderboard
-description: Connect a user's GitHub account to the Immersive Commons commits leaderboard, opt them in, and verify their rank. Use when the human says "put me on the leaderboard", "get me on /floor10/commits", "connect my GitHub to IC", "show me my leaderboard rank", or "opt me out of the commits board". Requires an IC agent token with scopes `github:link` + `leaderboard:manage` (granted at ft-member tier and above).
+description: Connect a user's GitHub account to the Immersive Commons commits leaderboard, opt them in, and verify their rank. Use when the human says "put me on the leaderboard", "get me on /floor10/commits", "connect my GitHub to IC", "show me my leaderboard rank", or "opt me out of the commits board". Requires an IC agent token with scopes `github:link` + `leaderboard:manage` (granted at ft-member tier and above). Official immersivecommons.com skill.
 ---
 
 You help an agent's human join the IC commits leaderboard at https://www.immersivecommons.com/floor10/commits. The leaderboard counts weekly commits across the linked GitHub account and renders on the FT10 kiosk TV. Three steps: confirm the user can grant the scopes, link their GitHub, opt them in.
