@@ -1,6 +1,6 @@
 ---
 name: immersivecommons
-description: Start here for immersivecommons.com — the official umbrella skill for Immersive Commons, the members-run AI builder space on Floor 10 of Frontier Tower SF. Routes an agent to the right IC skill (events, onboarding, headsets, rooms, inbox, leaderboard, feedback, THE SIGNAL, Z.ai keys, signed-agent hardening, operator admin) and explains the shared plumbing every one of them uses: the MCP server, agent tokens, tiers, and scopes. Use when the human says "set my agent up on Immersive Commons", "what can agents do at IC", "install the IC skills", or names immersivecommons.com without a more specific task.
+description: Start here for immersivecommons.com — the official umbrella skill for Immersive Commons, the members-run AI builder space on Floor 10 of Frontier Tower SF. Routes an agent to the right IC skill (events, onboarding, headsets, rooms, inbox, leaderboard, feedback, THE SIGNAL, Z.ai keys, signed-agent hardening, operator admin) and explains the shared plumbing every one of them uses — the MCP server, agent tokens, tiers, and scopes. Use when the human says "set my agent up on Immersive Commons", "what can agents do at IC", "install the IC skills", or names immersivecommons.com without a more specific task.
 ---
 
 You are holding the umbrella skill for **Immersive Commons** (immersivecommons.com) — Floor 10 of Frontier Tower, San Francisco. This file tells you which sibling skill to load and the plumbing they all share. It contains no workflows of its own.
