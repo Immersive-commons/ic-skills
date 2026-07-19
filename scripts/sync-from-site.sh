@@ -54,4 +54,13 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
+# Refresh the .claude/skills/ mirror so Claude Code auto-loads these as
+# project skills for anyone who clones the repo. skills/ stays canonical;
+# this copy must never be edited directly.
+CLAUDE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
+mkdir -p "$CLAUDE_SKILLS_DIR"
+rm -rf "${CLAUDE_SKILLS_DIR:?}"/*
+cp -r "$SKILLS_DIR"/. "$CLAUDE_SKILLS_DIR"/
+echo "Mirrored skills/ -> .claude/skills/"
+
 echo "Done. Review 'git diff' before committing — the site is the source of truth, this mirror should only ever move toward it."

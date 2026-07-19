@@ -25,7 +25,8 @@ Everything on the agent surface is free. See [pricing.md](https://www.immersivec
 
 | Path | What |
 |---|---|
-| `skills/` | 13 installable [Agent Skills](https://skills.sh) — `SKILL.md` files a coding agent (Claude Code, Cursor, etc.) reads to learn one IC workflow at a time. |
+| `skills/` | 14 installable [Agent Skills](https://skills.sh) — `SKILL.md` files a coding agent (Claude Code, Cursor, etc.) reads to learn one IC workflow at a time. |
+| `.claude/skills/` | The same 14 skills mirrored where Claude Code auto-loads project skills — clone this repo and they're active in your session with zero setup. Kept in sync by `scripts/sync-from-site.sh`. |
 | `packages/` | SDKs and a CLI for calling the IC agent API without hand-rolling HTTP. See `packages/README.md` for what's shipped so far. |
 | `AGENTS.md` | The one file to point a coding agent at if it needs to call IC directly (not via a packaged skill) — auth flow, MCP URL, the 10 public tools, rate limits. |
 | `scripts/sync-from-site.sh` | Re-pulls every `SKILL.md` from the live site so this mirror never drifts silently. |
@@ -35,10 +36,12 @@ Everything on the agent surface is free. See [pricing.md](https://www.immersivec
 Using [skills.sh](https://skills.sh):
 
 ```bash
-npx skills add RayyanZahid/ic-skills
+npx skills add immersive-commons/ic-skills
 ```
 
-This walks you through selecting one or more of the 13 skills below and the target agent (Claude Code, Cursor, etc.) to install into.
+This walks you through selecting one or more of the 14 skills below and the target agent (Claude Code, Cursor, etc.) to install into.
+
+Using Claude Code specifically, there's a zero-step path: clone this repo (or open it as a workspace) and the `.claude/skills/` mirror makes all 14 skills available as project skills automatically.
 
 Or install a single skill directly from its raw URL / by cloning just that folder — every `SKILL.md` is self-contained (no shared includes) and works fine copied on its own.
 
@@ -46,7 +49,7 @@ Or install a single skill directly from its raw URL / by cloning just that folde
 
 This repo doubles as a **plugin** (`.codex-plugin/plugin.json`): one install gives your
 agent the IC MCP server connection (`.mcp.json` → `https://www.immersivecommons.com/api/mcp`)
-plus all 13 skills below. Two ways in:
+plus all 14 skills below. Two ways in:
 
 - **From this repo as a marketplace source** — add the repo (it ships
   `.agents/plugins/marketplace.json`) and install the `immersive-commons` plugin from it.
@@ -62,6 +65,7 @@ self-mint).
 
 | Skill | What it does | Auth |
 |---|---|---|
+| [`immersivecommons`](skills/immersivecommons/SKILL.md) | Start here — the umbrella skill. Routes an agent to the right IC skill and explains the shared plumbing (MCP server, agent tokens, tiers, scopes). | none |
 | [`ic-onboarding`](skills/ic-onboarding/SKILL.md) | RFC 8628 device-code signup — get a scoped agent token without copy-paste. | none (issues a token) |
 | [`ic-signal`](skills/ic-signal/SKILL.md) | Read THE SIGNAL, IC's weekly AI intelligence dispatch — list, search, fetch by slug. | none |
 | [`ic-events`](skills/ic-events/SKILL.md) | Discover upcoming events and RSVP. | bearer |
