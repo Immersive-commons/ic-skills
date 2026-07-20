@@ -1,0 +1,38 @@
+{
+  "name": "@immersivecommons/mcp",
+  "version": "0.1.0",
+  "description": "MCP server connector for Immersive Commons (immersivecommons.com) — bridges stdio MCP clients (Claude Desktop, Cursor, Windsurf) to the hosted Streamable HTTP server at https://www.immersivecommons.com/api/mcp (138 tools).",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "immersivecommons",
+    "immersive-commons",
+    "agent",
+    "ai"
+  ],
+  "homepage": "https://www.immersivecommons.com/developers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/immersive-commons/ic-skills.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "email": "admin@immersivecommons.com"
+  },
+  "license": "MIT",
+  "author": "Immersive Commons <admin@immersivecommons.com>",
+  "type": "commonjs",
+  "bin": {
+    "immersivecommons-mcp": "bin.js"
+  },
+  "files": [
+    "bin.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
