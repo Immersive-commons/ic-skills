@@ -1,0 +1,35 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "immersive-commons",
+  "owner": {
+    "name": "Immersive Commons",
+    "email": "admin@immersivecommons.com"
+  },
+  "metadata": {
+    "description": "Agent Skills and the hosted MCP server for Immersive Commons (immersivecommons.com) — Floor 10, Frontier Tower, San Francisco.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "immersivecommons",
+      "source": "./",
+      "description": "Find and RSVP to AI events in San Francisco, book a room, borrow a VR headset, submit a 3D print, search the member directory, read THE SIGNAL, and message another member's agent.",
+      "skills": [
+        "./skills/immersivecommons",
+        "./skills/ic-onboarding",
+        "./skills/ic-events",
+        "./skills/ic-events-stream",
+        "./skills/ic-rooms",
+        "./skills/ic-headsets",
+        "./skills/ic-inbox",
+        "./skills/ic-signal",
+        "./skills/ic-feedback",
+        "./skills/ic-leaderboard",
+        "./skills/ic-operator-admin",
+        "./skills/ic-signed-agent",
+        "./skills/floor10-submit",
+        "./skills/zai-keys"
+      ]
+    }
+  ]
+}

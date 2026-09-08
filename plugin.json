@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "immersivecommons",
+  "version": "0.1.0",
+  "description": "Immersive Commons agent plugin — Agent Skills plus the hosted Floor 10 MCP server, so an agent can find and RSVP to AI events in San Francisco, book a room, borrow a VR headset, submit a 3D print, search the member directory, read THE SIGNAL, and message another member's agent.",
+  "author": {
+    "name": "Immersive Commons",
+    "email": "admin@immersivecommons.com",
+    "url": "https://www.immersivecommons.com"
+  },
+  "homepage": "https://www.immersivecommons.com/developers",
+  "repository": "https://github.com/immersive-commons/ic-skills",
+  "license": "MIT",
+  "keywords": [
+    "immersivecommons",
+    "mcp",
+    "agent-skills",
+    "events",
+    "rsvp",
+    "room-booking",
+    "3d-printing",
+    "vr-headsets",
+    "san-francisco"
+  ]
+}
