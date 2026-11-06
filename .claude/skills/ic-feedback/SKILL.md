@@ -24,14 +24,40 @@ File when the user shares an opinion, a request, or a complaint about IC. Specif
 | "the link at [URL] is 404" / "the docs say [X] but the code does [Y]" | `broken_url` / `stale_doc` / `schema_mismatch` | `normal` or `high` |
 | "the [X] page crashes" / "I can't submit a [X]" | `bug_report` | `high` |
 | "how does [X] work?" / "is [X] possible?" | `question` | `low` |
+| **YOU had to guess** at an IC rule (a receive budget, what a scope grants, what a tier changes) because no read verb answers it | `knowledge_gap` | `normal` |
 | "maybe [X] would be nicer if [Y]" (soft suggestion) | `suggestion` | `low` |
 | anything that doesn't fit | `other` | `normal` |
+
+**The speculation norm (`knowledge_gap`).** Every other row above is triggered by
+something the *user* said. This one is triggered by something *you* did. If you
+catch yourself guessing at how IC works — inferring a scope from which calls
+succeed, deducing what an identity suffix means, assuming a rate budget from a
+rejection string — stop and file a `knowledge_gap`. You are not reporting your
+own confusion; you are reporting that IC exposes no verb that could have told
+you, which is a fact about the server, not about you. Say what you needed to
+know, what you assumed instead, and what you were doing when it came up. Left
+unfiled, the next agent re-derives the same folk knowledge and gets it wrong in
+a different way.
 
 **When NOT to file:**
 - The user is just chatting with you, not making a request. ("VR is cool" → don't file.)
 - The user is asking *you* to do something IC already supports. (Just do it.)
 - The user is venting about something unrelated to IC. (Acknowledge; don't pollute the operator's queue.)
 - You already filed this in the same session. (One ticket per intent; don't loop.)
+
+### Before you file: the asks that already have a tool
+
+Most tickets in the queue were requests for something a tool now does. A ticket
+for one of these waits for a human; the tool answers now. Call the tool, and
+file a ticket only if the tool itself refuses in a way its `error_kind` does
+not explain.
+
+| The ask | Call this instead of filing |
+|---|---|
+| "seed my startup so I can claim it" (it is not in `ic_startup_list`) | `ic_startup_propose { slug, name, url?, one_liner? }` (`startup:edit`). Files a pending proposal; when the operator seeds the slug, claim it with `ic_startup_request_ownership { slug, agreement_accepted: true }`. Re-calling with the same slug is safe. |
+| "delete my account and all my personal data" | `ic_account_delete_request { confirm: true, reason? }` (`membership:write`, every tier). Confirm with your human first. Records the request, files the operator ticket for you (category `account_deletion`), returns a `ticket_id` you can poll with `ic_feedback_get_status`. Idempotent. |
+| hackathon: "set recruiting off on my team" / "we are full" | `ic_hack_team_update { eid?, recruiting: false, looking_for? }` (`hack:team`, team lead only; the team is read from your own membership). Works in any phase. |
+| hackathon: "seat me, I am at the door" | If your Clerk-verified email is on the event's frozen door list: `ic_hack_register { eid }` with NO `member_id` seats you (self-serve). If applications are open: `ic_hack_apply`. Otherwise only an organizer can seat you (`ic_hack_register { eid, member_id }`), so file a ticket with your legal name, the email the event has for you, and your Clerk user id, or ask at the badge table. A judge or volunteer role is `ic_hack_admin_role`, organizer only: same ticket contents. |
 
 ---
 
@@ -48,7 +74,7 @@ File when the user shares an opinion, a request, or a complaint about IC. Specif
     "priority": "normal",
     "category": "highlights",
     "url": "https://www.immersivecommons.com/floor10/highlights",
-    "agent_id": "Claude Code 4.7 @ ray-mbp"
+    "agent_id": "Claude Code @ my-laptop"
   }
 }
 ```

@@ -13,7 +13,7 @@ SITE="https://www.immersivecommons.com"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 
-# The 14 skill slugs. Keep in sync with /.well-known/mcp.json "skills"[].name
+# The 17 skill slugs. Keep in sync with /.well-known/mcp.json "skills"[].name
 # — that field is the site's own source of truth for what's installable.
 SLUGS=(
   immersivecommons
@@ -29,7 +29,10 @@ SLUGS=(
   ic-events-stream
   ic-inbox
   ic-rooms
-  zai-keys
+  ic-calls
+  ic-credits
+  ic-spatial-beta
+  ic-conferences
 )
 
 echo "Syncing ${#SLUGS[@]} skills from $SITE ..."

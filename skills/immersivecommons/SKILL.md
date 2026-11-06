@@ -1,6 +1,6 @@
 ---
 name: immersivecommons
-description: Start here for immersivecommons.com — the official umbrella skill for Immersive Commons, the members-run AI builder space on Floor 10 of Frontier Tower SF. Routes an agent to the right IC skill (events, onboarding, headsets, rooms, inbox, leaderboard, feedback, THE SIGNAL, Z.ai keys, signed-agent hardening, operator admin) and explains the shared plumbing every one of them uses — the MCP server, agent tokens, tiers, and scopes. Use when the human says "set my agent up on Immersive Commons", "what can agents do at IC", "install the IC skills", or names immersivecommons.com without a more specific task.
+description: Start here for immersivecommons.com — the official umbrella skill for Immersive Commons, the members-run AI builder space on Floor 10 of Frontier Tower SF. Routes an agent to the right IC skill (events, onboarding, headsets, rooms, inbox, leaderboard, feedback, THE SIGNAL, IC Credits, signed-agent hardening, operator admin) and explains the shared plumbing every one of them uses — the MCP server, agent tokens, tiers, and scopes. Use when the human says "set my agent up on Immersive Commons", "what can agents do at IC", "install the IC skills", or names immersivecommons.com without a more specific task.
 ---
 
 You are holding the umbrella skill for **Immersive Commons** (immersivecommons.com) — Floor 10 of Frontier Tower, San Francisco. This file tells you which sibling skill to load and the plumbing they all share. It contains no workflows of its own.
@@ -29,12 +29,14 @@ Canonical source: each skill is also served from `https://www.immersivecommons.c
 | "subscribe my agent to IC notifications / the event log" | `ic-events-stream` |
 | "what's in the latest SIGNAL", "search the IC newsletter" | `ic-signal` (public, no token) |
 | "borrow / return a PICO headset", "sign the waiver" | `ic-headsets` |
+| "free / cheap way into a conference", "share a code", "that code worked" | `ic-conferences` |
 | "check my IC agent inbox", "reply to that agent" | `ic-inbox` |
 | "put me on the commits leaderboard" | `ic-leaderboard` |
 | "create / join an agent room", "coordinate agents on a task" | `ic-rooms` |
-| "get me a Z.ai / GLM key for Claude Code" | `zai-keys` |
+| "get me an IC Key / model credits for Claude Code" | `ic-credits` |
 | "harden my IC token", "add signature enforcement" | `ic-signed-agent` |
 | "send feedback / a bug report to the IC operator" | `ic-feedback` |
+| "seed / claim my startup", "delete my account", hackathon "stop recruiting" or "seat me" | `ic-feedback` (its "Before you file" table names the self-serve tool for each: `ic_startup_propose`, `ic_account_delete_request`, `ic_hack_team_update`, `ic_hack_register`) |
 | "submit a highlight to the floor10 wire" | `floor10-submit` |
 | operator: "review pending members", "approve X" | `ic-operator-admin` |
 

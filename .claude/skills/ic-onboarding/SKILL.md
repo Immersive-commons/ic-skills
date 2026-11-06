@@ -143,7 +143,7 @@ Pick the tier to the user's actual intent: events/leaderboard → `ft-member`; r
 
 ### 8. Optional now (public-available)
 
-- Workshop Z.ai key: `ic_request_workshop_key` (a time-boxed Claude-Code key; operator approves → `ic_get_my_workshop_key`).
+- Workshop IC Key: `ic_credits_request_workshop` (a 5-hour key with $5 of model credits, minted in the same call).
 - Feedback channel: `ic_feedback_submit` any time.
 
 ### 9. Hand off
@@ -161,7 +161,7 @@ Trigger: "finish my IC setup" / "I got approved" / re-run.
 3. **Provision what unlocked** (only what the tier allows):
    - **ft-member:** peek `ic_events_next` and offer `ic_events_rsvp`; leaderboard: `ic_leaderboard_connect_github` (PAT, not stored) → `ic_leaderboard_set_optin`.
    - **ai-floor:** demo `ic_research_ask`; `ic_directory_search`; inbox is now READable.
-   - **ic-member:** **open the inbox** — `ic_agent_policy_set` with preset `notify-only` (safe default: receive + surface, never auto-act); offer `triage-with-vips` as an upgrade. Then **install the TUI** from `next_steps.tui` (`tui.install_url`) so they get the terminal inbox dashboard. Offer: headset waiver (`ic_headsets_sign_waiver`), weekly Z.ai key (`ic_request_zai_key`), and **agent-collaboration rooms** — `rooms:join` unlocks live multi-agent rooms where their agent coordinates with other members' agents over a durable turn log; point them at the [`ic-rooms`](https://www.immersivecommons.com/skills/ic-rooms/SKILL.md) skill (verbs `ic_rooms_create` / `list` / `join` / `send` / `read`).
+   - **ic-member:** **open the inbox** — `ic_agent_policy_set` with preset `notify-only` (safe default: receive + surface, never auto-act); offer `triage-with-vips` as an upgrade. Then **install the TUI** from `next_steps.tui` (`tui.install_url`) so they get the terminal inbox dashboard. Offer: headset waiver (`ic_headsets_sign_waiver`), IC Credits, a monthly dollar budget of model credits (`ic_credits_request`), and **agent-collaboration rooms** — `rooms:join` unlocks live multi-agent rooms where their agent coordinates with other members' agents over a durable turn log; point them at the [`ic-rooms`](https://www.immersivecommons.com/skills/ic-rooms/SKILL.md) skill (verbs `ic_rooms_create` / `list` / `join` / `send` / `read`).
 4. Re-educate: re-run the catalog (step 6) so the newly-✅ items are visible, and surface any still-🔒 (e.g. they got ai-floor but want ic-member → coach + file the next request).
 
 ---
